@@ -9,7 +9,7 @@ const DEFAULT_LISTS = [
 const state = {
   lists: [],
   tasks: [],
-  view: 'all',
+  view: 'today',
   filterListId: 'all',
   editingId: null,
   editingListId: null,

@@ -210,8 +210,8 @@ body {
   background: transparent;
   cursor: pointer;
   position: relative;
-  transition: background 0.15s;
-  border-bottom: 1px solid var(--rule);
+  transition: background 0.15s, border-bottom-color 0.2s;
+  border-bottom: 2px solid var(--prio4);
 }
 
 /* 左侧优先级色条 */
@@ -222,7 +222,7 @@ body {
   top: 18px;
   bottom: 18px;
   width: 3px;
-  background: transparent;
+  background: var(--prio4);
   border-radius: 0 2px 2px 0;
   transition: background 0.2s;
 }
@@ -230,6 +230,10 @@ body {
 .task-item:has(.task-check[data-prio="1"])::before { background: var(--prio1); }
 .task-item:has(.task-check[data-prio="2"])::before { background: var(--prio2); }
 .task-item:has(.task-check[data-prio="3"])::before { background: var(--prio3); }
+
+.task-item:has(.task-check[data-prio="1"]) { border-bottom-color: var(--prio1); }
+.task-item:has(.task-check[data-prio="2"]) { border-bottom-color: var(--prio2); }
+.task-item:has(.task-check[data-prio="3"]) { border-bottom-color: var(--prio3); }
 
 .task-item:active {
   background: var(--paper-deep);
