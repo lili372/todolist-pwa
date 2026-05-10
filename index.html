@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#13100D" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>待办清单</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <nav class="view-tabs" id="viewTabs">
+      <button class="tab active" data-view="all">全部</button>
+      <button class="tab" data-view="today">今天</button>
+      <button class="tab" data-view="upcoming">最近</button>
+    </nav>
+  </header>
+
+  <div class="list-filter" id="listFilter"></div>
+
+  <main class="task-container" id="taskContainer">
+    <ul class="task-list" id="taskList"></ul>
+    <div class="empty-state" id="emptyState" hidden>
+      <div class="empty-icon">📋</div>
+      <p class="empty-text">还没有任务</p>
+      <p class="empty-hint">点右下角 + 添加一个</p>
+    </div>
+  </main>
+
+  <button class="fab" id="fab" aria-label="新增任务">+</button>
+
+  <!-- 新增/编辑任务弹窗 -->
+  <div class="modal-backdrop" id="taskModal" hidden>
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h2 id="modalTitle">新建任务</h2>
+        <button class="icon-btn" id="closeModal" aria-label="关闭">×</button>
+      </div>
+      <form id="taskForm">
+        <input type="hidden" id="taskId">
+        <div class="field">
+          <input type="text" id="taskTitle" placeholder="要做什么？" required autocomplete="off" maxlength="200">
+        </div>
+        <div class="field">
+          <label>清单</label>
+          <select id="taskList-select"></select>
+        </div>
+        <div class="field">
+          <label>截止日期</label>
+          <div class="date-row">
+            <input type="date" id="taskDate">
+            <button type="button" class="chip-btn" id="clearDate">清除</button>
+          </div>
+          <div class="quick-dates">
+            <button type="button" class="chip-btn" data-quick="today">今天</button>
+            <button type="button" class="chip-btn" data-quick="tomorrow">明天</button>
+            <button type="button" class="chip-btn" data-quick="week">下周</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>优先级</label>
+          <div class="priority-row" id="priorityRow">
+            <button type="button" class="prio-btn" data-prio="1">P1</button>
+            <button type="button" class="prio-btn" data-prio="2">P2</button>
+            <button type="button" class="prio-btn" data-prio="3">P3</button>
+            <button type="button" class="prio-btn active" data-prio="4">无</button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-danger" id="deleteTaskBtn" hidden>删除</button>
+          <button type="submit" class="btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 清单管理弹窗 -->
+  <div class="modal-backdrop" id="listModal" hidden>
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h2>管理清单</h2>
+        <button class="icon-btn" id="closeListModal" aria-label="关闭">×</button>
+      </div>
+      <ul class="list-manage" id="listManage"></ul>
+      <form id="listForm">
+        <div class="field">
+          <input type="text" id="newListName" placeholder="新清单名称" maxlength="20" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>颜色</label>
+          <div class="color-row" id="colorRow"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="cancelEditListBtn" hidden>取消</button>
+          <button type="submit" class="btn-primary" id="listSubmitBtn">添加清单</button>
+        </div>
+      </form>
+      <div class="divider"></div>
+      <div class="data-actions">
+        <div class="data-title">数据备份</div>
+        <div class="data-hint">导出后建议传到微信收藏，换手机或清缓存前务必备份</div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="importBtn">导入</button>
+          <button type="button" class="btn-ghost" id="exportBtn">导出</button>
+        </div>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+    </div>
+  </div>
+
+  <!-- 确认弹窗 -->
+  <div class="modal-backdrop" id="confirmModal" hidden>
+    <div class="modal-sheet confirm-sheet">
+      <h2 class="confirm-title" id="confirmTitle">确认</h2>
+      <p class="confirm-msg" id="confirmMsg"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="confirmCancel">取消</button>
+        <button type="button" class="btn-primary btn-confirm" id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

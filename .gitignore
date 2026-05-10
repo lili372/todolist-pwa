@@ -1,0 +1,16 @@
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*~
+
+# 日志
+*.log
+
+# 备份 JSON（你导出的个人数据不应提交）
+todolist-backup-*.json

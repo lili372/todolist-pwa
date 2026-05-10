@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>生成图标</title>
+<style>
+  body { font-family: -apple-system, "Microsoft YaHei", sans-serif; padding: 24px; background: #f5f6f8; }
+  h1 { font-size: 18px; }
+  p { color: #555; line-height: 1.6; }
+  .row { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
+  .col { text-align: center; }
+  canvas { border: 1px solid #ddd; border-radius: 12px; background: #fff; }
+  button { padding: 10px 20px; font-size: 14px; background: #4a9eff; color: #fff; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
+  button:hover { opacity: 0.9; }
+  code { background: #eee; padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>生成 PWA 图标</h1>
+<p>点击下面两个按钮下载图标，保存到项目的 <code>icons/</code> 目录，文件名分别是 <code>icon-192.png</code> 和 <code>icon-512.png</code>。</p>
+
+<div class="row">
+  <div class="col">
+    <canvas id="c192" width="192" height="192"></canvas>
+    <br><button onclick="download(192)">下载 icon-192.png</button>
+  </div>
+  <div class="col">
+    <canvas id="c512" width="512" height="512"></canvas>
+    <br><button onclick="download(512)">下载 icon-512.png</button>
+  </div>
+</div>
+
+<script>
+function draw(size) {
+  const canvas = document.getElementById('c' + size);
+  const ctx = canvas.getContext('2d');
+  const r = size * 0.22;
+
+  // 象牙纸底
+  ctx.fillStyle = '#FAF7F2';
+  roundRect(ctx, 0, 0, size, size, r);
+  ctx.fill();
+
+  // 细描边（杂志封面感）
+  ctx.strokeStyle = '#1A1612';
+  ctx.lineWidth = size * 0.02;
+  roundRect(ctx, size * 0.05, size * 0.05, size * 0.9, size * 0.9, r * 0.85);
+  ctx.stroke();
+
+  // 三条清单线 + 勾选
+  const lineY = [size * 0.36, size * 0.54, size * 0.72];
+  const boxX = size * 0.22;
+  const boxSize = size * 0.10;
+  const lineX = boxX + boxSize + size * 0.06;
+  const lineLen = size * 0.40;
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // 第一条：已完成（红色填充勾选 + 划线）
+  drawCheckbox(ctx, boxX, lineY[0] - boxSize / 2, boxSize, true, size);
+  ctx.strokeStyle = '#A89586';
+  ctx.lineWidth = size * 0.022;
+  ctx.beginPath();
+  ctx.moveTo(lineX, lineY[0]);
+  ctx.lineTo(lineX + lineLen, lineY[0]);
+  ctx.stroke();
+  // 删除线
+  ctx.strokeStyle = '#A89586';
+  ctx.lineWidth = size * 0.012;
+  ctx.beginPath();
+  ctx.moveTo(lineX, lineY[0]);
+  ctx.lineTo(lineX + lineLen, lineY[0]);
+  ctx.stroke();
+
+  // 第二条：未完成
+  drawCheckbox(ctx, boxX, lineY[1] - boxSize / 2, boxSize, false, size);
+  ctx.strokeStyle = '#1A1612';
+  ctx.lineWidth = size * 0.028;
+  ctx.beginPath();
+  ctx.moveTo(lineX, lineY[1]);
+  ctx.lineTo(lineX + lineLen, lineY[1]);
+  ctx.stroke();
+
+  // 第三条：未完成（短一点，带焦糖红优先级条）
+  drawCheckbox(ctx, boxX, lineY[2] - boxSize / 2, boxSize, false, size);
+  ctx.strokeStyle = '#1A1612';
+  ctx.beginPath();
+  ctx.moveTo(lineX, lineY[2]);
+  ctx.lineTo(lineX + lineLen * 0.72, lineY[2]);
+  ctx.stroke();
+
+  // 左侧焦糖红竖条（优先级标记）
+  ctx.fillStyle = '#C83F2E';
+  ctx.fillRect(size * 0.10, lineY[2] - size * 0.05, size * 0.018, size * 0.10);
+}
+
+function drawCheckbox(ctx, x, y, size, checked, canvasSize) {
+  if (checked) {
+    ctx.fillStyle = '#C83F2E';
+    roundRect(ctx, x, y, size, size, size * 0.25);
+    ctx.fill();
+    ctx.strokeStyle = '#FAF7F2';
+    ctx.lineWidth = canvasSize * 0.022;
+    ctx.beginPath();
+    ctx.moveTo(x + size * 0.22, y + size * 0.52);
+    ctx.lineTo(x + size * 0.44, y + size * 0.72);
+    ctx.lineTo(x + size * 0.78, y + size * 0.32);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#1A1612';
+    ctx.lineWidth = canvasSize * 0.016;
+    roundRect(ctx, x, y, size, size, size * 0.25);
+    ctx.stroke();
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function download(size) {
+  const canvas = document.getElementById('c' + size);
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = `icon-${size}.png`;
+  a.click();
+}
+
+draw(192);
+draw(512);
+</script>
+</body>
+</html>
