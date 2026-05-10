@@ -1,74 +1,120 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="UTF-8">
-<title>生成图标</title>
-<style>
-  body { font-family: -apple-system, "Microsoft YaHei", sans-serif; padding: 24px; background: #f5f6f8; }
-  h1 { font-size: 18px; }
-  p { color: #555; line-height: 1.6; }
-  .row { display: flex; gap: 20px; flex-wrap: wrap; margin: 20px 0; }
-  .col { text-align: center; }
-  canvas { border: 1px solid #ddd; border-radius: 12px; background: #fff; }
-  button { padding: 10px 20px; font-size: 14px; background: #4a9eff; color: #fff; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
-  button:hover { opacity: 0.9; }
-  code { background: #eee; padding: 2px 6px; border-radius: 4px; }
-</style>
+  <meta charset="UTF-8">
+  <title>生成图标</title>
+  <style>
+    body {
+      font-family: -apple-system, "Microsoft YaHei", sans-serif;
+      padding: 24px;
+      background: #f5f6f8;
+    }
+
+    h1 {
+      font-size: 18px;
+    }
+
+    p {
+      color: #555;
+      line-height: 1.6;
+    }
+
+    .row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+
+    .col {
+      text-align: center;
+    }
+
+    canvas {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 14px;
+      background: #4a9eff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    code {
+      background: #eee;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
 </head>
+
 <body>
-<h1>生成 PWA 图标</h1>
-<p>点击下面两个按钮下载图标，保存到项目的 <code>icons/</code> 目录，文件名分别是 <code>icon-192.png</code> 和 <code>icon-512.png</code>。</p>
+  <h1>生成 PWA 图标</h1>
+  <p>点击下面两个按钮下载图标，保存到项目的 <code>icons/</code> 目录，文件名分别是 <code>icon-192.png</code> 和 <code>icon-512.png</code>。</p>
 
-<div class="row">
-  <div class="col">
-    <canvas id="c192" width="192" height="192"></canvas>
-    <br><button onclick="download(192)">下载 icon-192.png</button>
+  <div class="row">
+    <div class="col">
+      <canvas id="c192" width="192" height="192"></canvas>
+      <br><button onclick="download(192)">下载 icon-192.png</button>
+    </div>
+    <div class="col">
+      <canvas id="c512" width="512" height="512"></canvas>
+      <br><button onclick="download(512)">下载 icon-512.png</button>
+    </div>
   </div>
-  <div class="col">
-    <canvas id="c512" width="512" height="512"></canvas>
-    <br><button onclick="download(512)">下载 icon-512.png</button>
-  </div>
-</div>
 
-<script>
-function draw(size) {
-  const canvas = document.getElementById('c' + size);
-  const ctx = canvas.getContext('2d');
-  const r = size * 0.22;
+  <script>
+    function draw(size) {
+      const canvas = document.getElementById('c' + size);
+      const ctx = canvas.getContext('2d');
+      const r = size * 0.22;
 
-  // 焦糖红纯色底
-  ctx.fillStyle = '#C83F2E';
-  roundRect(ctx, 0, 0, size, size, r);
-  ctx.fill();
+      // 焦糖红纯色底
+      ctx.fillStyle = '#C83F2E';
+      roundRect(ctx, 0, 0, size, size, r);
+      ctx.fill();
 
-  // 白色"记"字
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = `600 ${size * 0.62}px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('记', size / 2, size / 2 + size * 0.02);
-}
+      // 白色"记"字
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = `600 ${size * 0.85}px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('记', size / 2, size / 2 + size * 0.07);
+    }
 
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
 
-function download(size) {
-  const canvas = document.getElementById('c' + size);
-  const a = document.createElement('a');
-  a.href = canvas.toDataURL('image/png');
-  a.download = `icon-${size}.png`;
-  a.click();
-}
+    function download(size) {
+      const canvas = document.getElementById('c' + size);
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `icon-${size}.png`;
+      a.click();
+    }
 
-draw(192);
-draw(512);
-</script>
+    draw(192);
+    draw(512);
+  </script>
 </body>
+
 </html>
