@@ -96,11 +96,11 @@ body {
 .view-tabs {
   display: flex;
   padding: 14px 16px 0;
-  gap: 28px;
-  justify-content: center;
+  justify-content: space-between;
 }
 
 .tab {
+  flex: 1;
   padding: 8px 0 14px;
   background: transparent;
   border: none;
@@ -112,6 +112,7 @@ body {
   letter-spacing: 0.08em;
   transition: color 0.2s;
   font-family: inherit;
+  text-align: center;
 }
 
 .tab::after {
@@ -131,8 +132,8 @@ body {
 }
 
 .tab.active::after {
-  width: 100%;
-  left: 0;
+  width: 40%;
+  left: 30%;
 }
 
 /* ===== 清单筛选 ===== */
