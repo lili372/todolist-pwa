@@ -51,7 +51,7 @@
           <label>清单</label>
           <select id="taskList-select"></select>
         </div>
-        <div class="field">
+        <div class="field" id="dateField">
           <label>截止日期</label>
           <div class="date-row">
             <input type="date" id="taskDate">
@@ -62,6 +62,13 @@
             <button type="button" class="chip-btn" data-quick="tomorrow">明天</button>
             <button type="button" class="chip-btn" data-quick="week">下周</button>
           </div>
+        </div>
+        <div class="field recurring-field">
+          <label>每日重复</label>
+          <button type="button" id="recurringToggle" class="toggle-switch" role="switch" aria-checked="false">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-text">开启后每天自动出现在"今天"，截止日期无效</span>
+          </button>
         </div>
         <div class="field">
           <label>优先级</label>

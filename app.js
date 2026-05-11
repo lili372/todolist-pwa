@@ -14,7 +14,8 @@ const state = {
   editingId: null,
   editingListId: null,
   selectedPrio: 4,
-  selectedColor: '#4a9eff'
+  selectedColor: '#4a9eff',
+  selectedRecurring: false
 };
 
 function load() {
@@ -99,6 +100,50 @@ function getList(listId) {
   return state.lists.find(l => l.id === listId) || state.lists[0];
 }
 
+/* ===== 每日任务工具 ===== */
+function isRecurring(task) {
+  return task.recurring === 'daily';
+}
+
+function isDoneToday(task) {
+  if (isRecurring(task)) {
+    return Array.isArray(task.completedDates) && task.completedDates.includes(todayStr());
+  }
+  return !!task.done;
+}
+
+function getStreakStats(completedDates) {
+  if (!Array.isArray(completedDates) || completedDates.length === 0) {
+    return { current: 0, best: 0, total: 0 };
+  }
+  const sorted = [...new Set(completedDates)].sort();
+  const total = sorted.length;
+
+  let best = 1;
+  let run = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    const diff = (new Date(sorted[i]) - new Date(sorted[i - 1])) / 86400000;
+    if (Math.round(diff) === 1) {
+      run++;
+      if (run > best) best = run;
+    } else {
+      run = 1;
+    }
+  }
+
+  const set = new Set(sorted);
+  const today = todayStr();
+  const yesterday = addDays(today, -1);
+  let cursor = set.has(today) ? today : (set.has(yesterday) ? yesterday : null);
+  let current = 0;
+  while (cursor && set.has(cursor)) {
+    current++;
+    cursor = addDays(cursor, -1);
+  }
+
+  return { current, best, total };
+}
+
 /* ===== 过滤 ===== */
 function filteredTasks() {
   const today = todayStr();
@@ -111,18 +156,22 @@ function filteredTasks() {
 
   if (state.view === 'today') {
     tasks = tasks.filter(t => {
+      if (isRecurring(t)) return true;
       if (!t.done) return t.dueDate && t.dueDate <= today;
       return t.completedAt && sameDay(t.completedAt, Date.now());
     });
   } else if (state.view === 'upcoming') {
     tasks = tasks.filter(t => {
+      if (isRecurring(t)) return false;
       if (!t.done) return t.dueDate && t.dueDate <= weekLater;
       return t.completedAt && Date.now() - t.completedAt <= 7 * 24 * 3600 * 1000;
     });
   }
 
   return tasks.sort((a, b) => {
-    if (a.done !== b.done) return a.done ? 1 : -1;
+    const aDone = isDoneToday(a);
+    const bDone = isDoneToday(b);
+    if (aDone !== bDone) return aDone ? 1 : -1;
     const ad = a.dueDate || '9999-12-31';
     const bd = b.dueDate || '9999-12-31';
     if (ad !== bd) return ad < bd ? -1 : 1;
@@ -148,6 +197,8 @@ const el = {
   taskDate: document.getElementById('taskDate'),
   clearDate: document.getElementById('clearDate'),
   priorityRow: document.getElementById('priorityRow'),
+  recurringToggle: document.getElementById('recurringToggle'),
+  dateField: document.getElementById('dateField'),
   deleteTaskBtn: document.getElementById('deleteTaskBtn'),
   listModal: document.getElementById('listModal'),
   closeListModal: document.getElementById('closeListModal'),
@@ -218,20 +269,33 @@ function renderTasks() {
   el.emptyState.hidden = true;
   el.taskList.innerHTML = tasks.map(t => {
     const list = getList(t.listId);
-    const dateClass = isOverdue(t.dueDate) && !t.done ? 'date overdue' : 'date';
-    const dueHtml = t.dueDate
+    const doneToday = isDoneToday(t);
+    const recurring = isRecurring(t);
+    const dateClass = isOverdue(t.dueDate) && !doneToday ? 'date overdue' : 'date';
+    const dueHtml = !recurring && t.dueDate
       ? `<span class="${dateClass}"><span class="date-label">截止</span><span class="date-value">${formatDate(t.dueDate)}</span></span>`
       : '';
     const listHtml = state.filterListId === 'all'
       ? `<span class="list-tag"><span class="dot" style="background:${list.color}"></span>${list.name}</span>`
       : '';
-    const createdHtml = `<span class="created"><span class="created-value">${formatDateTime(t.createdAt)}</span></span>`;
+    let streakHtml = '';
+    if (recurring) {
+      const s = getStreakStats(t.completedDates);
+      if (s.total > 0) {
+        streakHtml = `<span class="streak">连续 ${s.current} 天 · 最高 ${s.best} · 累计 ${s.total}</span>`;
+      } else {
+        streakHtml = `<span class="streak streak-empty">每日</span>`;
+      }
+    }
+    const createdHtml = recurring
+      ? ''
+      : `<span class="created"><span class="created-value">${formatDateTime(t.createdAt)}</span></span>`;
     return `
-      <li class="task-item ${t.done ? 'done' : ''}" data-id="${t.id}">
+      <li class="task-item ${doneToday ? 'done' : ''}" data-id="${t.id}">
         <button class="task-check" data-prio="${t.priority}" data-action="toggle" aria-label="完成"></button>
         <div class="task-body" data-action="edit">
           <div class="task-title-wrap"><span class="task-title">${escapeHtml(t.title)}</span></div>
-          <div class="task-meta">${dueHtml}${listHtml}${createdHtml}</div>
+          <div class="task-meta">${dueHtml}${listHtml}${streakHtml}${createdHtml}</div>
         </div>
       </li>
     `;
@@ -284,6 +348,7 @@ function openTaskModal(taskId = null) {
     el.taskListSelect.value = t.listId;
     el.taskDate.value = t.dueDate || '';
     setPriority(t.priority);
+    setRecurring(isRecurring(t));
     el.deleteTaskBtn.hidden = false;
   } else {
     el.modalTitle.textContent = '新建任务';
@@ -292,6 +357,7 @@ function openTaskModal(taskId = null) {
     el.taskListSelect.value = state.filterListId !== 'all' ? state.filterListId : state.lists[0].id;
     el.taskDate.value = '';
     setPriority(4);
+    setRecurring(false);
     el.deleteTaskBtn.hidden = true;
   }
   el.taskModal.hidden = false;
@@ -308,6 +374,13 @@ function setPriority(p) {
   el.priorityRow.querySelectorAll('.prio-btn').forEach(btn => {
     btn.classList.toggle('active', Number(btn.dataset.prio) === p);
   });
+}
+
+function setRecurring(on) {
+  state.selectedRecurring = !!on;
+  el.recurringToggle.classList.toggle('on', state.selectedRecurring);
+  el.recurringToggle.setAttribute('aria-checked', state.selectedRecurring);
+  el.dateField.hidden = state.selectedRecurring;
 }
 
 function openListModal() {
@@ -357,21 +430,36 @@ function saveTask(e) {
   e.preventDefault();
   const title = el.taskTitle.value.trim();
   if (!title) return;
+  const recurring = state.selectedRecurring;
   const payload = {
     title,
     listId: el.taskListSelect.value,
-    dueDate: el.taskDate.value || null,
-    priority: state.selectedPrio
+    dueDate: recurring ? null : (el.taskDate.value || null),
+    priority: state.selectedPrio,
+    recurring: recurring ? 'daily' : null
   };
   if (state.editingId) {
     const t = state.tasks.find(x => x.id === state.editingId);
-    if (t) Object.assign(t, payload);
+    if (t) {
+      const wasRecurring = isRecurring(t);
+      Object.assign(t, payload);
+      if (recurring && !wasRecurring) {
+        t.completedDates = Array.isArray(t.completedDates) ? t.completedDates : [];
+        t.done = false;
+        t.completedAt = null;
+      } else if (!recurring && wasRecurring) {
+        t.completedDates = [];
+        t.done = false;
+        t.completedAt = null;
+      }
+    }
   } else {
     state.tasks.push({
       id: uid(),
       done: false,
       createdAt: Date.now(),
       completedAt: null,
+      completedDates: recurring ? [] : [],
       ...payload
     });
   }
@@ -383,8 +471,18 @@ function saveTask(e) {
 function toggleTask(id) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
-  t.done = !t.done;
-  t.completedAt = t.done ? Date.now() : null;
+  if (isRecurring(t)) {
+    const today = todayStr();
+    if (!Array.isArray(t.completedDates)) t.completedDates = [];
+    if (t.completedDates.includes(today)) {
+      t.completedDates = t.completedDates.filter(d => d !== today);
+    } else {
+      t.completedDates.push(today);
+    }
+  } else {
+    t.done = !t.done;
+    t.completedAt = t.done ? Date.now() : null;
+  }
   save();
   render();
 }
@@ -529,16 +627,15 @@ function chooseImportMode(payload) {
     el.confirmOk.classList.add('danger');
     el.confirmModal.hidden = false;
 
-    const close = result => {
+    const cleanup = () => {
       el.confirmModal.hidden = true;
       el.confirmOk.classList.remove('danger');
       el.confirmOk.removeEventListener('click', onOk);
       el.confirmCancel.removeEventListener('click', onMerge);
       el.confirmModal.removeEventListener('click', onBackdrop);
-      resolve(result);
     };
     const onOk = async () => {
-      close(null);
+      cleanup();
       const confirmed = await confirmDialog({
         title: '确定覆盖？',
         message: '当前所有任务和清单会被删除，此操作不可撤销',
@@ -547,8 +644,10 @@ function chooseImportMode(payload) {
       });
       resolve(confirmed ? 'replace' : null);
     };
-    const onMerge = () => close('merge');
-    const onBackdrop = e => { if (e.target === el.confirmModal) close(null); };
+    const onMerge = () => { cleanup(); resolve('merge'); };
+    const onBackdrop = e => {
+      if (e.target === el.confirmModal) { cleanup(); resolve(null); }
+    };
 
     el.confirmOk.addEventListener('click', onOk);
     el.confirmCancel.addEventListener('click', onMerge);
@@ -611,6 +710,10 @@ document.querySelectorAll('[data-quick]').forEach(btn => {
 el.priorityRow.addEventListener('click', e => {
   const btn = e.target.closest('.prio-btn');
   if (btn) setPriority(Number(btn.dataset.prio));
+});
+
+el.recurringToggle.addEventListener('click', () => {
+  setRecurring(!state.selectedRecurring);
 });
 
 el.closeListModal.addEventListener('click', closeListModal);
