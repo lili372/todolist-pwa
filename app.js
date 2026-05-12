@@ -15,7 +15,7 @@ const state = {
   editingListId: null,
   selectedPrio: 4,
   selectedColor: '#4a9eff',
-  selectedRecurring: false
+  selectedRecurring: null
 };
 
 function load() {
@@ -100,13 +100,21 @@ function getList(listId) {
   return state.lists.find(l => l.id === listId) || state.lists[0];
 }
 
-/* ===== 每日任务工具 ===== */
-function isRecurring(task) {
+/* ===== 重复任务工具 ===== */
+function isDaily(task) {
   return task.recurring === 'daily';
 }
 
+function isFollowup(task) {
+  return task.recurring === 'followup';
+}
+
+function isAnyRecurring(task) {
+  return isDaily(task) || isFollowup(task);
+}
+
 function isDoneToday(task) {
-  if (isRecurring(task)) {
+  if (isDaily(task)) {
     return Array.isArray(task.completedDates) && task.completedDates.includes(todayStr());
   }
   return !!task.done;
@@ -156,13 +164,13 @@ function filteredTasks() {
 
   if (state.view === 'today') {
     tasks = tasks.filter(t => {
-      if (isRecurring(t)) return true;
+      if (isDaily(t)) return true;
       if (!t.done) return t.dueDate && t.dueDate <= today;
       return t.completedAt && sameDay(t.completedAt, Date.now());
     });
   } else if (state.view === 'upcoming') {
     tasks = tasks.filter(t => {
-      if (isRecurring(t)) return false;
+      if (isDaily(t)) return false;
       if (!t.done) return t.dueDate && t.dueDate <= weekLater;
       return t.completedAt && Date.now() - t.completedAt <= 7 * 24 * 3600 * 1000;
     });
@@ -195,9 +203,11 @@ const el = {
   taskTitle: document.getElementById('taskTitle'),
   taskListSelect: document.getElementById('taskList-select'),
   taskDate: document.getElementById('taskDate'),
+  dateFieldLabel: document.getElementById('dateFieldLabel'),
   clearDate: document.getElementById('clearDate'),
   priorityRow: document.getElementById('priorityRow'),
-  recurringToggle: document.getElementById('recurringToggle'),
+  recurringSegment: document.getElementById('recurringSegment'),
+  recurringHint: document.getElementById('recurringHint'),
   dateField: document.getElementById('dateField'),
   deleteTaskBtn: document.getElementById('deleteTaskBtn'),
   listModal: document.getElementById('listModal'),
@@ -215,10 +225,61 @@ const el = {
   importFile: document.getElementById('importFile'),
   colorRow: document.getElementById('colorRow'),
   listSubmitBtn: document.getElementById('listSubmitBtn'),
-  cancelEditListBtn: document.getElementById('cancelEditListBtn')
+  cancelEditListBtn: document.getElementById('cancelEditListBtn'),
+  followupModal: document.getElementById('followupModal'),
+  followupGrid: document.getElementById('followupGrid'),
+  followupCustomWrap: document.getElementById('followupCustomWrap'),
+  followupCustomInput: document.getElementById('followupCustomInput'),
+  followupCustomOk: document.getElementById('followupCustomOk'),
+  followupCancel: document.getElementById('followupCancel'),
+  followupEnd: document.getElementById('followupEnd')
 };
 
 const LIST_COLORS = ['#4a9eff', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#9ca3af'];
+
+/* ===== 顺延弹窗 ===== */
+function chooseFollowupAction() {
+  return new Promise(resolve => {
+    el.followupCustomWrap.hidden = true;
+    el.followupCustomInput.value = '';
+    el.followupModal.hidden = false;
+
+    const cleanup = () => {
+      el.followupModal.hidden = true;
+      el.followupCustomWrap.hidden = true;
+      el.followupGrid.removeEventListener('click', onGrid);
+      el.followupCustomOk.removeEventListener('click', onCustomOk);
+      el.followupCancel.removeEventListener('click', onCancel);
+      el.followupEnd.removeEventListener('click', onEnd);
+      el.followupModal.removeEventListener('click', onBackdrop);
+    };
+    const done = v => { cleanup(); resolve(v); };
+    const onGrid = e => {
+      const btn = e.target.closest('.fu-btn');
+      if (!btn) return;
+      if (btn.dataset.days === 'custom') {
+        el.followupCustomWrap.hidden = false;
+        setTimeout(() => el.followupCustomInput.focus(), 50);
+        return;
+      }
+      done(Number(btn.dataset.days));
+    };
+    const onCustomOk = () => {
+      const n = parseInt(el.followupCustomInput.value, 10);
+      if (!n || n < 1 || n > 365) return;
+      done(n);
+    };
+    const onCancel = () => done(null);
+    const onEnd = () => done('end');
+    const onBackdrop = e => { if (e.target === el.followupModal) done(null); };
+
+    el.followupGrid.addEventListener('click', onGrid);
+    el.followupCustomOk.addEventListener('click', onCustomOk);
+    el.followupCancel.addEventListener('click', onCancel);
+    el.followupEnd.addEventListener('click', onEnd);
+    el.followupModal.addEventListener('click', onBackdrop);
+  });
+}
 
 /* ===== 自定义确认弹窗 ===== */
 function confirmDialog({ title = '确认', message = '', okText = '确定', cancelText = '取消', danger = false } = {}) {
@@ -270,24 +331,30 @@ function renderTasks() {
   el.taskList.innerHTML = tasks.map(t => {
     const list = getList(t.listId);
     const doneToday = isDoneToday(t);
-    const recurring = isRecurring(t);
+    const daily = isDaily(t);
+    const followup = isFollowup(t);
     const dateClass = isOverdue(t.dueDate) && !doneToday ? 'date overdue' : 'date';
-    const dueHtml = !recurring && t.dueDate
+    const dueHtml = !daily && t.dueDate
       ? `<span class="${dateClass}"><span class="date-label">截止</span><span class="date-value">${formatDate(t.dueDate)}</span></span>`
       : '';
     const listHtml = state.filterListId === 'all'
       ? `<span class="list-tag"><span class="dot" style="background:${list.color}"></span>${list.name}</span>`
       : '';
     let streakHtml = '';
-    if (recurring) {
+    if (daily) {
       const s = getStreakStats(t.completedDates);
       if (s.total > 0) {
         streakHtml = `<span class="streak">连续 ${s.current} 天 · 最高 ${s.best} · 累计 ${s.total}</span>`;
       } else {
         streakHtml = `<span class="streak streak-empty">每日</span>`;
       }
+    } else if (followup) {
+      const times = Array.isArray(t.completedDates) ? t.completedDates.length : 0;
+      streakHtml = times > 0
+        ? `<span class="streak">顺延 · 已做 ${times} 次</span>`
+        : `<span class="streak streak-empty">顺延</span>`;
     }
-    const createdHtml = recurring
+    const createdHtml = daily
       ? ''
       : `<span class="created"><span class="created-value">${formatDateTime(t.createdAt)}</span></span>`;
     return `
@@ -348,7 +415,7 @@ function openTaskModal(taskId = null) {
     el.taskListSelect.value = t.listId;
     el.taskDate.value = t.dueDate || '';
     setPriority(t.priority);
-    setRecurring(isRecurring(t));
+    setRecurring(t.recurring || null);
     el.deleteTaskBtn.hidden = false;
   } else {
     el.modalTitle.textContent = '新建任务';
@@ -357,7 +424,7 @@ function openTaskModal(taskId = null) {
     el.taskListSelect.value = state.filterListId !== 'all' ? state.filterListId : state.lists[0].id;
     el.taskDate.value = '';
     setPriority(4);
-    setRecurring(false);
+    setRecurring(null);
     el.deleteTaskBtn.hidden = true;
   }
   el.taskModal.hidden = false;
@@ -376,11 +443,32 @@ function setPriority(p) {
   });
 }
 
-function setRecurring(on) {
-  state.selectedRecurring = !!on;
-  el.recurringToggle.classList.toggle('on', state.selectedRecurring);
-  el.recurringToggle.setAttribute('aria-checked', state.selectedRecurring);
-  el.dateField.hidden = state.selectedRecurring;
+function setRecurring(value) {
+  const v = value === 'daily' || value === 'followup' ? value : null;
+  state.selectedRecurring = v;
+  el.recurringSegment.querySelectorAll('.seg-btn').forEach(btn => {
+    const match = (btn.dataset.recurring === 'none' && v === null) || btn.dataset.recurring === v;
+    btn.classList.toggle('active', match);
+    btn.setAttribute('aria-checked', match);
+  });
+  el.dateField.hidden = v === 'daily';
+  if (v === 'followup') {
+    el.dateFieldLabel.textContent = '下次做';
+    el.taskDate.min = todayStr();
+    if (!state.editingId && !el.taskDate.value) {
+      el.taskDate.value = todayStr();
+    }
+  } else {
+    el.dateFieldLabel.textContent = '截止日期';
+    el.taskDate.removeAttribute('min');
+  }
+  if (v === 'daily') {
+    el.recurringHint.textContent = '每天自动出现在"今天"，忽略截止日期';
+  } else if (v === 'followup') {
+    el.recurringHint.textContent = '完成时可以顺延到几天后，或选择"结束"归档';
+  } else {
+    el.recurringHint.textContent = '';
+  }
 }
 
 function openListModal() {
@@ -430,25 +518,30 @@ function saveTask(e) {
   e.preventDefault();
   const title = el.taskTitle.value.trim();
   if (!title) return;
-  const recurring = state.selectedRecurring;
+  const recurring = state.selectedRecurring; // null | 'daily' | 'followup'
+  let dueDate;
+  if (recurring === 'daily') {
+    dueDate = null;
+  } else if (recurring === 'followup') {
+    // 顺延任务必须有"下次做"日期，没填则默认今天，避免任务在今天/最近视图失踪
+    dueDate = el.taskDate.value || todayStr();
+  } else {
+    dueDate = el.taskDate.value || null;
+  }
   const payload = {
     title,
     listId: el.taskListSelect.value,
-    dueDate: recurring ? null : (el.taskDate.value || null),
+    dueDate,
     priority: state.selectedPrio,
-    recurring: recurring ? 'daily' : null
+    recurring: recurring
   };
   if (state.editingId) {
     const t = state.tasks.find(x => x.id === state.editingId);
     if (t) {
-      const wasRecurring = isRecurring(t);
+      const wasRecurring = t.recurring || null;
       Object.assign(t, payload);
-      if (recurring && !wasRecurring) {
-        t.completedDates = Array.isArray(t.completedDates) ? t.completedDates : [];
-        t.done = false;
-        t.completedAt = null;
-      } else if (!recurring && wasRecurring) {
-        t.completedDates = [];
+      if (!Array.isArray(t.completedDates)) t.completedDates = [];
+      if (wasRecurring !== recurring) {
         t.done = false;
         t.completedAt = null;
       }
@@ -459,7 +552,7 @@ function saveTask(e) {
       done: false,
       createdAt: Date.now(),
       completedAt: null,
-      completedDates: recurring ? [] : [],
+      completedDates: [],
       ...payload
     });
   }
@@ -468,10 +561,10 @@ function saveTask(e) {
   closeTaskModal();
 }
 
-function toggleTask(id) {
+async function toggleTask(id) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
-  if (isRecurring(t)) {
+  if (isDaily(t)) {
     const today = todayStr();
     if (!Array.isArray(t.completedDates)) t.completedDates = [];
     if (t.completedDates.includes(today)) {
@@ -479,10 +572,42 @@ function toggleTask(id) {
     } else {
       t.completedDates.push(today);
     }
-  } else {
-    t.done = !t.done;
-    t.completedAt = t.done ? Date.now() : null;
+    save();
+    render();
+    return;
   }
+  if (isFollowup(t)) {
+    if (t.done) {
+      // 取消结束：回滚当日点击时追加的那次打卡，避免"已做 N 次"虚高
+      t.done = false;
+      t.completedAt = null;
+      const today = todayStr();
+      if (Array.isArray(t.completedDates) && t.completedDates.length > 0
+          && t.completedDates[t.completedDates.length - 1] === today) {
+        t.completedDates.pop();
+      }
+      save();
+      render();
+      return;
+    }
+    const choice = await chooseFollowupAction();
+    if (choice === null) return;
+    if (!Array.isArray(t.completedDates)) t.completedDates = [];
+    t.completedDates.push(todayStr());
+    if (choice === 'end') {
+      t.done = true;
+      t.completedAt = Date.now();
+    } else {
+      t.dueDate = addDays(todayStr(), choice);
+      t.done = false;
+      t.completedAt = null;
+    }
+    save();
+    render();
+    return;
+  }
+  t.done = !t.done;
+  t.completedAt = t.done ? Date.now() : null;
   save();
   render();
 }
@@ -712,8 +837,11 @@ el.priorityRow.addEventListener('click', e => {
   if (btn) setPriority(Number(btn.dataset.prio));
 });
 
-el.recurringToggle.addEventListener('click', () => {
-  setRecurring(!state.selectedRecurring);
+el.recurringSegment.addEventListener('click', e => {
+  const btn = e.target.closest('.seg-btn');
+  if (!btn) return;
+  const v = btn.dataset.recurring === 'none' ? null : btn.dataset.recurring;
+  setRecurring(v);
 });
 
 el.closeListModal.addEventListener('click', closeListModal);

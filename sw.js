@@ -1,4 +1,4 @@
-const CACHE = 'todolist-v8';
+const CACHE = 'todolist-v9';
 const ASSETS = [
   './',
   './index.html',

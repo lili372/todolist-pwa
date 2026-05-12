@@ -52,7 +52,7 @@
           <select id="taskList-select"></select>
         </div>
         <div class="field" id="dateField">
-          <label>截止日期</label>
+          <label id="dateFieldLabel">截止日期</label>
           <div class="date-row">
             <input type="date" id="taskDate">
             <button type="button" class="chip-btn" id="clearDate">清除</button>
@@ -64,11 +64,13 @@
           </div>
         </div>
         <div class="field recurring-field">
-          <label>每日重复</label>
-          <button type="button" id="recurringToggle" class="toggle-switch" role="switch" aria-checked="false">
-            <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            <span class="toggle-text">开启后每天自动出现在"今天"，截止日期无效</span>
-          </button>
+          <label>重复</label>
+          <div class="segment" id="recurringSegment" role="radiogroup">
+            <button type="button" class="seg-btn active" data-recurring="none" role="radio" aria-checked="true">无</button>
+            <button type="button" class="seg-btn" data-recurring="daily" role="radio" aria-checked="false">每日</button>
+            <button type="button" class="seg-btn" data-recurring="followup" role="radio" aria-checked="false">顺延</button>
+          </div>
+          <div class="recurring-hint" id="recurringHint"></div>
         </div>
         <div class="field">
           <label>优先级</label>
@@ -129,6 +131,30 @@
       <div class="modal-actions">
         <button type="button" class="btn-ghost" id="confirmCancel">取消</button>
         <button type="button" class="btn-primary btn-confirm" id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 顺延弹窗 -->
+  <div class="modal-backdrop" id="followupModal" hidden>
+    <div class="modal-sheet confirm-sheet followup-sheet">
+      <h2 class="confirm-title">下次什么时候做？</h2>
+      <p class="confirm-msg">选择顺延天数，或结束这个任务</p>
+      <div class="followup-grid" id="followupGrid">
+        <button type="button" class="fu-btn" data-days="1">1 天后</button>
+        <button type="button" class="fu-btn" data-days="2">2 天后</button>
+        <button type="button" class="fu-btn" data-days="3">3 天后</button>
+        <button type="button" class="fu-btn" data-days="5">5 天后</button>
+        <button type="button" class="fu-btn" data-days="7">7 天后</button>
+        <button type="button" class="fu-btn fu-custom" data-days="custom">自定义</button>
+      </div>
+      <div class="followup-custom" id="followupCustomWrap" hidden>
+        <input type="number" id="followupCustomInput" min="1" max="365" placeholder="输入天数" inputmode="numeric">
+        <button type="button" class="chip-btn" id="followupCustomOk">确定</button>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="followupCancel">取消</button>
+        <button type="button" class="btn-danger" id="followupEnd">结束任务</button>
       </div>
     </div>
   </div>
