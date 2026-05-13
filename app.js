@@ -28,13 +28,34 @@ function load() {
       return;
     }
   } catch (e) {
-    console.warn('数据读取失败，使用默认值', e);
+    console.error('数据读取失败', e);
+    // 数据损坏时必须立即让用户看到，否则后续任何操作都会把空数据覆盖写回
+    try {
+      alert('数据读取失败！\n\n' + e.message + '\n\n为防止覆盖原始数据，请先截图并刷新页面。如仍无法恢复，请用之前导出的备份文件导入。');
+    } catch (_) {}
   }
   state.lists = [...DEFAULT_LISTS];
   state.tasks = [];
 }
 
 function save() {
+  // 空写拦截：如果内存里有任务，但要写入的 tasks 是空数组，说明出异常了
+  // 除非调用方通过 __allowEmpty 明确允许（用户删到最后一条、覆盖导入空备份）
+  const prevRaw = localStorage.getItem(STORAGE_KEY);
+  if (prevRaw && !state.__allowEmpty) {
+    try {
+      const prev = JSON.parse(prevRaw);
+      const prevCount = Array.isArray(prev.tasks) ? prev.tasks.length : 0;
+      const nextCount = Array.isArray(state.tasks) ? state.tasks.length : 0;
+      if (prevCount > 0 && nextCount === 0) {
+        console.error('[save] 拦截空写入', { prevCount, nextCount });
+        alert('检测到异常的空写入，已拦截保存。\n\n请截图当前页面，然后刷新页面重新加载数据。如问题复现，请用之前导出的备份文件恢复。');
+        return;
+      }
+    } catch (_) {
+      // prevRaw 解析失败属于独立问题，不影响本次写入决策
+    }
+  }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       lists: state.lists,
@@ -621,7 +642,10 @@ async function deleteTask(id) {
   });
   if (!ok) return;
   state.tasks = state.tasks.filter(x => x.id !== id);
+  // 合法的空写入：用户主动删到最后一条
+  state.__allowEmpty = true;
   save();
+  delete state.__allowEmpty;
   render();
   closeTaskModal();
 }
@@ -731,7 +755,10 @@ async function importData(file) {
   }
   if (state.lists.length === 0) state.lists = [...DEFAULT_LISTS];
   state.filterListId = 'all';
+  // 合法的空写入：用户主动导入了空备份（覆盖模式）
+  state.__allowEmpty = true;
   save();
+  delete state.__allowEmpty;
   render();
   renderListManage();
   await confirmDialog({
