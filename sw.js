@@ -1,4 +1,4 @@
-const CACHE = 'todolist-v10';
+const CACHE = 'todolist-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -26,16 +26,24 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  e.respondWith(
-    caches.match(req).then(cached => {
-      if (cached) return cached;
-      return fetch(req).then(res => {
-        if (res && res.status === 200 && res.type === 'basic') {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
-        }
-        return res;
-      }).catch(() => cached);
-    })
-  );
+  e.respondWith((async () => {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    try {
+      const res = await fetch(req);
+      if (res && res.status === 200 && res.type === 'basic') {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy));
+      }
+      return res;
+    } catch (_) {
+      // 导航请求(打开主页/装好的 PWA 启动)兜底:网络失败时返回缓存的入口页,避免白屏
+      if (req.mode === 'navigate' || req.destination === 'document') {
+        const fallback = await caches.match('./index.html') || await caches.match('./');
+        if (fallback) return fallback;
+      }
+      // 非导航请求失败时返回明确错误,而不是 null/undefined(后者会让浏览器显示"无法访问此页面")
+      return new Response('', { status: 504, statusText: 'Gateway Timeout' });
+    }
+  })());
 });
