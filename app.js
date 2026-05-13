@@ -247,6 +247,7 @@ const el = {
   colorRow: document.getElementById('colorRow'),
   listSubmitBtn: document.getElementById('listSubmitBtn'),
   cancelEditListBtn: document.getElementById('cancelEditListBtn'),
+  versionLine: document.getElementById('versionLine'),
   followupModal: document.getElementById('followupModal'),
   followupGrid: document.getElementById('followupGrid'),
   followupCustomWrap: document.getElementById('followupCustomWrap'),
@@ -499,6 +500,23 @@ function openListModal() {
   el.newListName.value = '';
   state.selectedColor = LIST_COLORS[0];
   el.listModal.hidden = false;
+  renderVersion();
+}
+
+// 从 Service Worker 缓存名反推当前激活版本，显示 SW 层的事实而非代码声明
+async function renderVersion() {
+  if (!el.versionLine) return;
+  try {
+    if (!('caches' in self)) {
+      el.versionLine.textContent = '（无 SW 支持）';
+      return;
+    }
+    const keys = await caches.keys();
+    const match = keys.find(k => k.startsWith('todolist-v'));
+    el.versionLine.textContent = match ? match.replace('todolist-', '') + ' · todolist' : '（SW 未激活）';
+  } catch {
+    el.versionLine.textContent = '—';
+  }
 }
 
 function enterListEdit(listId) {

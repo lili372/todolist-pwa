@@ -972,6 +972,17 @@ body {
   letter-spacing: 0.02em;
 }
 
+.version-line {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.08em;
+  font-feature-settings: "tnum" 1;
+}
+
 /* ===== 进场动画 ===== */
 .task-item {
   animation: taskIn 0.3s ease-out backwards;
