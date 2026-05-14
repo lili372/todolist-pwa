@@ -141,6 +141,11 @@
     <div class="modal-sheet confirm-sheet followup-sheet">
       <h2 class="confirm-title">下次什么时候做？</h2>
       <p class="confirm-msg">选择顺延天数，或结束这个任务</p>
+      <div class="followup-actual">
+        <label for="followupActualDate">实际完成日期</label>
+        <input type="date" id="followupActualDate">
+        <div class="followup-actual-hint">不是今天完成的？改成实际日期，下次提醒会从这天起算</div>
+      </div>
       <div class="followup-grid" id="followupGrid">
         <button type="button" class="fu-btn" data-days="1">1 天后</button>
         <button type="button" class="fu-btn" data-days="2">2 天后</button>

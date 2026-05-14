@@ -117,6 +117,21 @@ function formatDateTime(ts) {
   return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+// 把 'YYYY-MM-DD' 转成相对今天的天数差（今天=0，昨天=1，前天=2）
+// 加 T00:00:00 强制按本地时区解析，避免时区漂移
+function daysSince(dateStr) {
+  if (!dateStr) return null;
+  const past = new Date(dateStr + 'T00:00:00');
+  const today = new Date(todayStr() + 'T00:00:00');
+  return Math.round((today - past) / 86400000);
+}
+
+// 时间戳 → 'YYYY-MM-DD'，用于把 createdAt 接入 daysSince
+function tsToDateStr(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function getList(listId) {
   return state.lists.find(l => l.id === listId) || state.lists[0];
 }
@@ -250,6 +265,7 @@ const el = {
   versionLine: document.getElementById('versionLine'),
   followupModal: document.getElementById('followupModal'),
   followupGrid: document.getElementById('followupGrid'),
+  followupActualDate: document.getElementById('followupActualDate'),
   followupCustomWrap: document.getElementById('followupCustomWrap'),
   followupCustomInput: document.getElementById('followupCustomInput'),
   followupCustomOk: document.getElementById('followupCustomOk'),
@@ -260,10 +276,13 @@ const el = {
 const LIST_COLORS = ['#4a9eff', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#9ca3af'];
 
 /* ===== 顺延弹窗 ===== */
+// 返回 null（取消） / { kind: 'days', days: N, actualDate } / { kind: 'end', actualDate }
 function chooseFollowupAction() {
   return new Promise(resolve => {
     el.followupCustomWrap.hidden = true;
     el.followupCustomInput.value = '';
+    el.followupActualDate.value = todayStr();
+    el.followupActualDate.max = todayStr(); // 实际完成日期不能是未来
     el.followupModal.hidden = false;
 
     const cleanup = () => {
@@ -275,6 +294,7 @@ function chooseFollowupAction() {
       el.followupEnd.removeEventListener('click', onEnd);
       el.followupModal.removeEventListener('click', onBackdrop);
     };
+    const getActual = () => el.followupActualDate.value || todayStr();
     const done = v => { cleanup(); resolve(v); };
     const onGrid = e => {
       const btn = e.target.closest('.fu-btn');
@@ -284,15 +304,15 @@ function chooseFollowupAction() {
         setTimeout(() => el.followupCustomInput.focus(), 50);
         return;
       }
-      done(Number(btn.dataset.days));
+      done({ kind: 'days', days: Number(btn.dataset.days), actualDate: getActual() });
     };
     const onCustomOk = () => {
       const n = parseInt(el.followupCustomInput.value, 10);
       if (!n || n < 1 || n > 365) return;
-      done(n);
+      done({ kind: 'days', days: n, actualDate: getActual() });
     };
     const onCancel = () => done(null);
-    const onEnd = () => done('end');
+    const onEnd = () => done({ kind: 'end', actualDate: getActual() });
     const onBackdrop = e => { if (e.target === el.followupModal) done(null); };
 
     el.followupGrid.addEventListener('click', onGrid);
@@ -371,14 +391,31 @@ function renderTasks() {
         streakHtml = `<span class="streak streak-empty">每日</span>`;
       }
     } else if (followup) {
-      const times = Array.isArray(t.completedDates) ? t.completedDates.length : 0;
-      streakHtml = times > 0
-        ? `<span class="streak">顺延 · 已做 ${times} 次</span>`
-        : `<span class="streak streak-empty">顺延</span>`;
+      // 顺延任务的"距上次/距创建 D 天"放下方独立位置，这里只保留"顺延"小标签
+      streakHtml = `<span class="streak streak-empty">顺延</span>`;
     }
-    const createdHtml = daily
-      ? ''
-      : `<span class="created"><span class="created-value">${formatDateTime(t.createdAt)}</span></span>`;
+    // 下方时间区域：
+    //   一次性任务 → 创建时间（精确到秒）
+    //   每日任务 → 不显示
+    //   顺延任务做过 → 距上次 D 天
+    //   顺延任务从未做过 → 距创建 D 天（用日期差，让"距创建"语义和"距上次"统一）
+    let createdHtml = '';
+    if (followup) {
+      const lastDate = Array.isArray(t.completedDates) && t.completedDates.length > 0
+        ? t.completedDates[t.completedDates.length - 1]
+        : null;
+      if (lastDate) {
+        const d = daysSince(lastDate);
+        const label = d === 0 ? '今天' : `${d} 天`;
+        createdHtml = `<span class="created"><span class="created-value">距上次 ${label}</span></span>`;
+      } else {
+        const d = daysSince(tsToDateStr(t.createdAt));
+        const label = d === 0 ? '今天' : `${d} 天`;
+        createdHtml = `<span class="created"><span class="created-value">距创建 ${label}</span></span>`;
+      }
+    } else if (!daily) {
+      createdHtml = `<span class="created"><span class="created-value">${formatDateTime(t.createdAt)}</span></span>`;
+    }
     return `
       <li class="task-item ${doneToday ? 'done' : ''}" data-id="${t.id}">
         <button class="task-check" data-prio="${t.priority}" data-action="toggle" aria-label="完成"></button>
@@ -632,12 +669,14 @@ async function toggleTask(id) {
     const choice = await chooseFollowupAction();
     if (choice === null) return;
     if (!Array.isArray(t.completedDates)) t.completedDates = [];
-    t.completedDates.push(todayStr());
-    if (choice === 'end') {
+    const actual = choice.actualDate || todayStr();
+    t.completedDates.push(actual);
+    if (choice.kind === 'end') {
       t.done = true;
       t.completedAt = Date.now();
     } else {
-      t.dueDate = addDays(todayStr(), choice);
+      // 下次提醒从用户填的实际完成日期算起，不是从今天，避免长期偏移
+      t.dueDate = addDays(actual, choice.days);
       t.done = false;
       t.completedAt = null;
     }

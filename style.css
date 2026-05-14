@@ -422,6 +422,43 @@ body {
   max-width: 380px;
 }
 
+.followup-actual {
+  margin: 14px 0 4px;
+}
+
+.followup-actual label {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+.followup-actual input[type="date"] {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 15px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: inherit;
+}
+
+.followup-actual input[type="date"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.followup-actual-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+
 .followup-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
